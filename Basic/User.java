@@ -60,7 +60,16 @@ public class User {
 		 * When we receive the acknowledgment, print out success.
 		 */
 		try { 
-			// COMPLETE MISSING CODE HERE
+			System.out.println("Send a message: ");       // Prompt the user
+			String userMsg = inputLine.readLine();        // Get the user's message
+			output_stream.println("#status " + userMsg);  // Send the message to the server
+
+			String serverRsp = input_stream.readLine();   // Read the server's response
+			if (serverRsp.startsWith("#statusPosted ")) { // Check if the response is formatted properly, else print an error
+				System.out.println(serverRsp);            // Print the server's response
+			} else {
+				System.err.println("Received invalid message from server: " + serverRsp);
+			}
 
 			/*
 			 * Close the output stream, close the input stream, close the socket.

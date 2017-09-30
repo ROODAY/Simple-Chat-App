@@ -60,7 +60,14 @@ public class Server {
 				
 				// Upon receiving a status message, ack it and print it out
 
-				// COMPLETE MISSING CODE HERE
+				String clientMsg = input_stream.readLine();                 // Get the client's message
+				if (clientMsg.startsWith("#status ")) {                     // Check if it's formatted properly, else print an error
+					String cleanedMsg = clientMsg.replace("#status ", "");  // Remove the message formatting to get just the message
+					System.out.println(cleanedMsg);                         // Print the client's message
+					output_stream.println("#statusPosted " + cleanedMsg);   // Inform the client that their message was posted
+				} else {
+					System.err.println("Received invalid message from client: " + clientMsg);
+				}
 
 				/*
 				 * Close the output stream, close the input stream, close the socket.

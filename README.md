@@ -1,2 +1,3 @@
-# CS655-Social-Network
-Social Networking App for CS655 PA1
+# CS 655 Social Networking Application
+
+CS 655 Programming Assignment 1

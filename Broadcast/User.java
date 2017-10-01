@@ -59,22 +59,32 @@ public class User extends Thread {
 		 * socket we have opened a connection to on port portNumber.
 		 */
 		if (userSocket != null && output_stream != null && input_stream != null) {
-			try {                
+			try {       
+				// Get user name and join the social net
+				System.out.print("Please enter a username: ");
+				String userName = inputLine.readLine().trim();
+				output_stream.println("#join " + userName);
+
 				/* Create a thread to read from the server. */
 				new Thread(new User()).start();
 
-				// Get user name and join the social net
+				
 
 				while (!closed) {
-					String userMessage = new String();
 					String userInput = inputLine.readLine().trim();
-					
-					// Read user input and send protocol message to server
-
+					if (userInput.equals("Exit")) {
+						output_stream.println("#Bye");
+					} else {
+						output_stream.println("#status " + userInput);
+					}
 				}
 				/*
 				 * Close the output stream, close the input stream, close the socket.
 				 */
+
+				output_stream.close();
+				input_stream.close();
+				userSocket.close();
 			} catch (IOException e) {
 				System.err.println("IOException:  " + e);
 			}
@@ -93,11 +103,31 @@ public class User extends Thread {
 		
 		try {
 			while ((responseLine = input_stream.readLine()) != null) {
-
-				// Display on console based on what protocol message we get from server.
-				
-
-
+				if (responseLine.startsWith("#welcome")) {
+					System.out.println("Connection established!");
+					System.out.println("Type 'Exit' to quit.");
+				} else if (responseLine.startsWith("#busy")) {
+					System.err.println("Server is busy right now, please try again later!");
+					System.exit(0);
+					break;
+				} else if (responseLine.startsWith("#statusPosted")) {
+					System.out.println("Status posted!");
+				} else if (responseLine.startsWith("#newuser")) {
+					String joiningUser = responseLine.replace("#newuser", "").trim();
+					System.out.println("User " + joiningUser + " has entered!");
+				} else if (responseLine.startsWith("#newStatus")) {
+					String newStatus[] = responseLine.replace("#newStatus", "").trim().split(" ", 2);
+					System.out.printf("[%s] %s\n", newStatus[0], newStatus[1]);
+				} else if (responseLine.startsWith("#Leave")) {
+					String leavingUser = responseLine.replace("#Leave", "").trim();
+					System.out.println("User " + leavingUser + " has left!");
+				} else if (responseLine.startsWith("#Bye")) {
+					System.err.println("Closing connection...");
+					System.exit(0);
+					break;
+				} else {
+					System.err.println("Received unknown message from server: " + responseLine);
+				}
 			}
 			closed = true;
 			output_stream.close();

@@ -108,17 +108,63 @@ class userThread extends Thread {
 			/*
 			 * Create input and output streams for this client.
 			 * Read user name.
+			 * Welcome the new user. 
 			 */
+			input_stream = new BufferedReader(new InputStreamReader(userSocket.getInputStream()));
+			output_stream = new PrintStream(userSocket.getOutputStream());
 
+			String joinMsg = input_stream.readLine();
+			if (joinMsg.startsWith("#join")) {
+				userName = joinMsg.replace("#join", "").trim();
+				System.out.println("User: " + userName + " has connected!");
+				synchronized (userThread.class) {
+					for (int i = 0; i < maxUsersCount; i++) {
+						if (threads[i] == this) {
+							output_stream.println("#welcome");
+						} else if (threads[i] != null) {
+							PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+							thread_os.printf("#newuser %s\n", userName);
+						}
+					}
+				}
+			} else {
+				System.err.println("Unknown join message: " + joinMsg);
+			}
 
-
-			/* Welcome the new user. */
-
+			Boolean running = true; 
 
 			/* Start the conversation. */
-			while (true) {
+			while (running) {
+				String clientMsg = input_stream.readLine();
 
-
+				if (clientMsg.startsWith("#status")) {
+					String cleanedMsg = clientMsg.replace("#status", "").trim();
+					synchronized (userThread.class) {
+						for (int i = 0; i < maxUsersCount; i++) {
+							if (threads[i] == this) {
+								output_stream.println("#statusPosted");
+							} else if (threads[i] != null) {
+								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+								thread_os.printf("#newStatus %s %s\n", userName, cleanedMsg);
+							}
+						}
+					}
+				} else if (clientMsg.startsWith("#Bye")) {
+					synchronized (userThread.class) {
+						for (int i = 0; i < maxUsersCount; i++) {
+							if (threads[i] == this) {
+								output_stream.println("#Bye");
+								System.out.println("User: " + userName + " has disconnected!");
+							} else if (threads[i] != null) {
+								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+								thread_os.printf("#Leave %s\n", userName);
+							}
+						}
+					}
+					running = false;
+				} else {
+					System.err.println("Received unknown message type from client: " + clientMsg);
+				}
 			}
 
 			// conversation ended.

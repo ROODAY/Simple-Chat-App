@@ -72,7 +72,7 @@ public class User extends Thread {
 
 				while (!closed) {
 					String userInput = inputLine.readLine().trim();
-					if (userInput.equals("Exit")) {
+					if (userInput.equals("Exit") || userInput.equals("exit")) {
 						output_stream.println("#Bye");
 					} else if (userInput.startsWith("@connect")) {
 						String friend = userInput.replace("@connect", "").trim();
@@ -86,6 +86,15 @@ public class User extends Thread {
 					} else if (userInput.startsWith("@disconnect")) {
 						String friend = userInput.replace("@disconnect", "").trim();
 						output_stream.println("#unfriend " + friend);
+					} else if (userInput.startsWith("@add")) {
+						String groupRequest = userInput.replace("@add", "").trim();
+						output_stream.println("#group " + groupRequest);
+					} else if (userInput.startsWith("@delete")) {
+						String groupRequest = userInput.replace("@delete", "").trim();
+						output_stream.println("#ungroup " + groupRequest);
+					} else if (userInput.startsWith("@send")) {
+						String groupMessage = userInput.replace("@send", "").trim();
+						output_stream.println("#gstatus " + groupMessage);
 					} else if (!userInput.startsWith("@")) {
 						output_stream.println("#status " + userInput);
 					} else {
@@ -101,6 +110,8 @@ public class User extends Thread {
 				userSocket.close();
 			} catch (IOException e) {
 				System.err.println("IOException:  " + e);
+				System.err.println("Closing...");
+				System.exit(0);
 			}
 		}
 	}
@@ -132,6 +143,9 @@ public class User extends Thread {
 				} else if (responseLine.startsWith("#newStatus")) {
 					String newStatus[] = responseLine.replace("#newStatus", "").trim().split(" ", 2);
 					System.out.printf("[%s] %s\n", newStatus[0], newStatus[1]);
+				} else if (responseLine.startsWith("#newGStatus")) {
+					String newStatus[] = responseLine.replace("#newGStatus", "").trim().split(" ", 3);
+					System.out.printf("[%s] [%s] %s\n", newStatus[0], newStatus[1], newStatus[2]);
 				} else if (responseLine.startsWith("#Leave")) {
 					String leavingUser = responseLine.replace("#Leave", "").trim();
 					System.out.println("User " + leavingUser + " has left!");
@@ -149,6 +163,12 @@ public class User extends Thread {
 				} else if (responseLine.startsWith("#NotFriends")) {
 					String friendName = responseLine.replace("#NotFriends", "").trim().split(" ")[1];
 					System.out.println("You are no longer friends with " + friendName + "!");
+				} else if (responseLine.startsWith("#group")) {
+					String[] request = responseLine.replace("#group", "").trim().split(" ");
+					System.out.printf("User: %s is now in group: %s!\n", request[1], request[0]);
+				} else if (responseLine.startsWith("#ungroup")) {
+					String[] request = responseLine.replace("#ungroup", "").trim().split(" ");
+					System.out.printf("User: %s is no longer in group: %s!\n", request[1], request[0]);
 				} else if (responseLine.startsWith("#Bye")) {
 					System.err.println("Closing connection...");
 					System.exit(0);

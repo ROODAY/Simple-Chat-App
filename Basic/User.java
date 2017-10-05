@@ -10,10 +10,7 @@ import java.io.BufferedReader;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-
-
 public class User {
-
 	// The user socket
 	private static Socket userSocket = null;
 	// The output stream
@@ -68,7 +65,7 @@ public class User {
 			if (serverRsp.startsWith("#statusPosted ")) { // Check if the response is formatted properly, else print an error
 				System.out.println(serverRsp);            // Print the server's response
 			} else {
-				System.err.println("Received invalid message from server: " + serverRsp);
+				System.err.println("Received invalid message from server: " + serverRsp); // Basic error handling
 			}
 
 			/*

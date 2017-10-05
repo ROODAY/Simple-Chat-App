@@ -9,13 +9,10 @@ import java.net.Socket;
 import java.net.ServerSocket;
 import java.util.*;
 
-
-
 /*
  * A server that delivers status messages to other users.
  */
 public class Server {
-
 	// Create a socket for the server 
 	private static ServerSocket serverSocket = null;
 	// Create a socket for the server 
@@ -25,9 +22,7 @@ public class Server {
 	// An array of threads for users
 	private static userThread[] threads = null;
 
-
 	public static void main(String args[]) {
-
 		// The default port number.
 		int portNumber = 8000;
 		if (args.length < 2) {
@@ -41,9 +36,7 @@ public class Server {
 
 		System.out.println("Server now using port number=" + portNumber + "\n" + "Maximum user count=" + maxUsersCount);
 		
-		
 		userThread[] threads = new userThread[maxUsersCount];
-
 
 		/*
 		 * Open a server socket on the portNumber (default 8000). 
@@ -117,7 +110,7 @@ class userThread extends Thread {
 			output_stream = new PrintStream(userSocket.getOutputStream());
 
 			String joinMsg = input_stream.readLine();
-			if (joinMsg.startsWith("#join")) {
+			if (joinMsg.startsWith("#join")) { // Acknowledge new user joining, and inform other clients.
 				userName = joinMsg.replace("#join", "").trim();
 				System.out.println("User: " + userName + " has connected!");
 				synchronized (userThread.class) {
@@ -130,7 +123,7 @@ class userThread extends Thread {
 						}
 					}
 				}
-			} else {
+			} else { // Basic error handling.
 				System.err.println("Unknown join message: " + joinMsg);
 			}
 
@@ -140,7 +133,7 @@ class userThread extends Thread {
 			while (running) {
 				String clientMsg = input_stream.readLine();
 
-				if (clientMsg.startsWith("#status")) {
+				if (clientMsg.startsWith("#status")) { // Acknowledge sender of status and broadcast to other clients.
 					String cleanedMsg = clientMsg.replace("#status", "").trim();
 					synchronized (userThread.class) {
 						for (int i = 0; i < maxUsersCount; i++) {
@@ -152,43 +145,51 @@ class userThread extends Thread {
 							}
 						}
 					}
-				} else if (clientMsg.startsWith("#friendme")) {
+				} else if (clientMsg.startsWith("#friendme")) { // Takes incoming friend request and forwards it to requested user.
 					Boolean requestSent = false;
 					String friendName = clientMsg.replace("#friendme", "").trim();
-					synchronized (userThread.class) {
-						for (int i = 0; i < maxUsersCount; i++) {
-							if (threads[i] != null && threads[i].userName.equals(friendName)) {
-								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
-								thread_os.printf("#friendme %s\n", userName);
-								requestSent = true;
+					if (friendName.equals(userName)) { // Prevent self friending.
+						output_stream.println("#error You can't friend yourself!");
+					} else {
+						synchronized (userThread.class) {
+							for (int i = 0; i < maxUsersCount; i++) {
+								if (threads[i] != null && threads[i].userName.equals(friendName)) {
+									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+									thread_os.printf("#friendme %s\n", userName);
+									requestSent = true;
+								}
 							}
 						}
+						if (requestSent) { // If request was sent, acknowledge sender, or inform sender that requested user doesn't exist.
+							output_stream.println("#serverMsg Friend Request Sent!");
+						} else {
+							output_stream.printf("#error User: %s doesn't exist.\n", friendName);
+						}
 					}
-					if (requestSent) {
-						output_stream.println("#serverMsg Friend Request Sent!");
-					} else {
-						output_stream.printf("#error Username: %s doesn't exist.\n", friendName);
-					}
-				} else if (clientMsg.startsWith("#friends")) {
+				} else if (clientMsg.startsWith("#friends")) { // Takes friend request acceptance and informs original sender.
 					Boolean requestSent = false;
 					String friendName = clientMsg.replace("#friends", "").trim();
-					synchronized (userThread.class) {
-						for (int i = 0; i < maxUsersCount; i++) {
-							if (threads[i] != null && threads[i].userName.equals(friendName)) {
-								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
-								thread_os.printf("#OKfriends %s %s\n", friendName, userName);
-								friends.add(threads[i]);
-								threads[i].friends.add(this);
-								requestSent = true;
+					if (friendName.equals(userName)) { // Prevent self friending.
+						output_stream.println("#error You can't friend yourself!");
+					} else {
+						synchronized (userThread.class) {
+							for (int i = 0; i < maxUsersCount; i++) {
+								if (threads[i] != null && threads[i].userName.equals(friendName)) {
+									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+									thread_os.printf("#OKfriends %s %s\n", friendName, userName);
+									friends.add(threads[i]);       // Add requestor to this thread's friends
+									threads[i].friends.add(this);  // Add this thread to requestor's friends
+									requestSent = true;
+								}
 							}
 						}
+						if (requestSent) { // If original sender was acknowledged, inform the acceptor, or inform them that the user doesn't exist.
+							output_stream.printf("#OKfriends %s %s\n", userName, friendName);
+						} else {
+							output_stream.printf("#error User: %s doesn't exist.\n", friendName);
+						}
 					}
-					if (requestSent) {
-						output_stream.printf("#OKfriends %s %s\n", userName, friendName);
-					} else {
-						output_stream.printf("#error Username: %s doesn't exist.\n", friendName);
-					}
-				} else if (clientMsg.startsWith("#unfriend")) {
+				} else if (clientMsg.startsWith("#unfriend")) { // Takes unfriend request and forwards it to unfriended client
 					Boolean requestSent = false;
 					String friendName = clientMsg.replace("#unfriend", "").trim();
 					synchronized (userThread.class) {
@@ -196,33 +197,35 @@ class userThread extends Thread {
 							if (threads[i] != null && threads[i].userName.equals(friendName)) {
 								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
 								thread_os.printf("#NotFriends %s %s\n", friendName, userName);
-								friends.remove(friends.indexOf(threads[i]));
-								threads[i].friends.remove(threads[i].friends.indexOf(this));
+								friends.remove(friends.indexOf(threads[i]));					// Remove the unfriended client from this thread's friends
+								threads[i].friends.remove(threads[i].friends.indexOf(this));	// Remove this thread from unfriended client's friends
 								requestSent = true;
 							}
 						}
 					}
-					if (requestSent) {
+					if (requestSent) { // If unfriending was successful, tell client, or inform them the requested user to unfriend doesn't exist.
 						output_stream.printf("#serverMsg You and %s are no longer friends!\n", friendName);
 					} else {
 						output_stream.printf("#error Username: %s doesn't exist.\n", friendName);
 					}
-				} else if (clientMsg.startsWith("#DenyFriendRequest")) {
+				} else if (clientMsg.startsWith("#DenyFriendRequest")) { // Takes deny friend request message and forwards it to original sender.
 					Boolean msgSent = false;
 					String requester = clientMsg.replace("#DenyFriendRequest", "").trim();
 					synchronized (userThread.class) {
 						for (int i = 0; i < maxUsersCount; i++) {
-							if (threads[i] != null && threads[i].userName.equals(requester)) {
+							if (threads[i] == this) {
+								output_stream.println("#serverMsg Friend Request Denied!");
+							} else if (threads[i] != null && threads[i].userName.equals(requester)) {
 								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
 								thread_os.printf("#FriendRequestDenied %s\n", userName);
 								msgSent = true;
 							}
 						}
 					}
-					if (!msgSent) {
+					if (!msgSent) { // If user doesn't exist, inform this client.
 						output_stream.printf("#error Username: %s doesn't exist.\n", requester);
 					}
-				} else if (clientMsg.startsWith("#Bye")) {
+				} else if (clientMsg.startsWith("#Bye")) { // If message is a leave request, acknowledge the sender and inform other clients
 					synchronized (userThread.class) {
 						for (int i = 0; i < maxUsersCount; i++) {
 							if (threads[i] == this) {
@@ -238,7 +241,7 @@ class userThread extends Thread {
 						}
 					}
 					running = false;
-				} else {
+				} else { // Basic error handling for unknown protocols.
 					System.err.println("Received unknown message type from client: " + clientMsg);
 				}
 			}
@@ -266,7 +269,3 @@ class userThread extends Thread {
 		}
 	}
 }
-
-
-
-

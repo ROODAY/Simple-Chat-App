@@ -68,14 +68,12 @@ public class User extends Thread {
 				/* Create a thread to read from the server. */
 				new Thread(new User()).start();
 
-				
-
 				while (!closed) {
 					String userInput = inputLine.readLine().trim();
-					if (userInput.equals("Exit")) {
+					if (userInput.equals("Exit") || userInput.equals("exit")) { // If user signals, quit the program
 						output_stream.println("#Bye");
-					} else {
-						output_stream.println("#status " + userInput);
+					} else {													// Else, send message as status
+						output_stream.println("#status " + userInput); 
 					}
 				}
 				/*
@@ -103,32 +101,34 @@ public class User extends Thread {
 		
 		try {
 			while ((responseLine = input_stream.readLine()) != null) {
-				if (responseLine.startsWith("#welcome")) {
+				if (responseLine.startsWith("#welcome")) { // Welcome user on connection
 					System.out.println("Connection established!");
 					System.out.println("Type 'Exit' to quit.");
-				} else if (responseLine.startsWith("#busy")) {
+				} else if (responseLine.startsWith("#busy")) { // If server is full, inform user and quit application
 					System.err.println("Server is busy right now, please try again later!");
 					System.exit(0);
 					break;
-				} else if (responseLine.startsWith("#statusPosted")) {
+				} else if (responseLine.startsWith("#statusPosted")) { // Let user know their status was posted
 					System.out.println("Status posted!");
-				} else if (responseLine.startsWith("#newuser")) {
+				} else if (responseLine.startsWith("#newuser")) { // Inform user of new user joining the server
 					String joiningUser = responseLine.replace("#newuser", "").trim();
 					System.out.println("User " + joiningUser + " has entered!");
-				} else if (responseLine.startsWith("#newStatus")) {
+				} else if (responseLine.startsWith("#newStatus")) { // Print a user's status to this user
 					String newStatus[] = responseLine.replace("#newStatus", "").trim().split(" ", 2);
 					System.out.printf("[%s] %s\n", newStatus[0], newStatus[1]);
-				} else if (responseLine.startsWith("#Leave")) {
+				} else if (responseLine.startsWith("#Leave")) { // Inform user that another user has left
 					String leavingUser = responseLine.replace("#Leave", "").trim();
 					System.out.println("User " + leavingUser + " has left!");
-				} else if (responseLine.startsWith("#Bye")) {
+				} else if (responseLine.startsWith("#Bye")) { // Server completing user's request to leave, user acknowledges by closing
 					System.err.println("Closing connection...");
 					System.exit(0);
 					break;
-				} else {
+				} else { // Basic error handling
 					System.err.println("Received unknown message from server: " + responseLine);
 				}
 			}
+
+			// Close connections and cleanup
 			closed = true;
 			output_stream.close();
 			input_stream.close();
@@ -138,6 +138,3 @@ public class User extends Thread {
 		}
 	}
 }
-
-
-

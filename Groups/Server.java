@@ -9,13 +9,10 @@ import java.net.Socket;
 import java.net.ServerSocket;
 import java.util.*;
 
-
-
 /*
  * A server that delivers status messages to other users.
  */
 public class Server {
-
 	// Create a socket for the server 
 	private static ServerSocket serverSocket = null;
 	// Create a socket for the server 
@@ -27,9 +24,7 @@ public class Server {
 	// An array of threads for users
 	private static userThread[] threads = null;
 
-
 	public static void main(String args[]) {
-
 		// The default port number.
 		int portNumber = 8000;
 		if (args.length < 2) {
@@ -43,9 +38,7 @@ public class Server {
 
 		System.out.println("Server now using port number=" + portNumber + "\n" + "Maximum user count=" + maxUsersCount);
 		
-		
 		userThread[] threads = new userThread[maxUsersCount];
-
 
 		/*
 		 * Open a server socket on the portNumber (default 8000). 
@@ -94,11 +87,11 @@ class userThread extends Thread {
 	private PrintStream output_stream = null;
 	private Socket userSocket = null;
 	private final userThread[] threads;
-	private ArrayList<userThread> friends;
-	private ArrayList<String> groups;
-	private ArrayList<String> myGroups;
+	private ArrayList<userThread> friends; // Keeps track of user's friends.
+	private ArrayList<String> groups; // Keeps track of all groups.
+	private ArrayList<String> myGroups; // Keeps track of user's groups.
 	private int maxUsersCount;
-	private int maxGroupsCount;
+	private int maxGroupsCount; // For simplicity, set to 5.
 
 	public userThread(Socket userSocket, userThread[] threads) {
 		this.userSocket = userSocket;
@@ -128,7 +121,7 @@ class userThread extends Thread {
 			output_stream = new PrintStream(userSocket.getOutputStream());
 
 			String joinMsg = input_stream.readLine();
-			if (joinMsg.startsWith("#join")) {
+			if (joinMsg.startsWith("#join")) { // Acknowledge new user joining, and inform other clients.
 				userName = joinMsg.replace("#join", "").trim();
 				System.out.println("User: " + userName + " has connected!");
 				synchronized (userThread.class) {
@@ -141,7 +134,7 @@ class userThread extends Thread {
 						}
 					}
 				}
-			} else {
+			} else { // Basic error handling.
 				System.err.println("Unknown join message: " + joinMsg);
 			}
 
@@ -151,7 +144,7 @@ class userThread extends Thread {
 			while (running) {
 				String clientMsg = input_stream.readLine();
 
-				if (clientMsg.startsWith("#status")) {
+				if (clientMsg.startsWith("#status")) { // Acknowledge sender of status and broadcast to other clients.
 					String cleanedMsg = clientMsg.replace("#status", "").trim();
 					synchronized (userThread.class) {
 						for (int i = 0; i < maxUsersCount; i++) {
@@ -163,43 +156,51 @@ class userThread extends Thread {
 							}
 						}
 					}
-				} else if (clientMsg.startsWith("#friendme")) {
+				} else if (clientMsg.startsWith("#friendme")) { // Takes incoming friend request and forwards it to requested user.
 					Boolean requestSent = false;
 					String friendName = clientMsg.replace("#friendme", "").trim();
-					synchronized (userThread.class) {
-						for (int i = 0; i < maxUsersCount; i++) {
-							if (threads[i] != null && threads[i].userName.equals(friendName)) {
-								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
-								thread_os.printf("#friendme %s\n", userName);
-								requestSent = true;
+					if (friendName.equals(userName)) { // Prevent self friending.
+						output_stream.println("#error You can't friend yourself!");
+					} else {
+						synchronized (userThread.class) {
+							for (int i = 0; i < maxUsersCount; i++) {
+								if (threads[i] != null && threads[i].userName.equals(friendName)) {
+									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+									thread_os.printf("#friendme %s\n", userName);
+									requestSent = true;
+								}
 							}
 						}
+						if (requestSent) { // If request was sent, acknowledge sender, or inform sender that requested user doesn't exist.
+							output_stream.println("#serverMsg Friend Request Sent!");
+						} else {
+							output_stream.printf("#error User: %s doesn't exist.\n", friendName);
+						}
 					}
-					if (requestSent) {
-						output_stream.println("#serverMsg Friend Request Sent!");
-					} else {
-						output_stream.printf("#error User: %s doesn't exist.\n", friendName);
-					}
-				} else if (clientMsg.startsWith("#friends")) {
+				} else if (clientMsg.startsWith("#friends")) { // Takes friend request acceptance and informs original sender.
 					Boolean requestSent = false;
 					String friendName = clientMsg.replace("#friends", "").trim();
-					synchronized (userThread.class) {
-						for (int i = 0; i < maxUsersCount; i++) {
-							if (threads[i] != null && threads[i].userName.equals(friendName)) {
-								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
-								thread_os.printf("#OKfriends %s %s\n", friendName, userName);
-								friends.add(threads[i]);
-								threads[i].friends.add(this);
-								requestSent = true;
+					if (friendName.equals(userName)) { // Prevent self friending.
+						output_stream.println("#error You can't friend yourself!");
+					} else {
+						synchronized (userThread.class) {
+							for (int i = 0; i < maxUsersCount; i++) {
+								if (threads[i] != null && threads[i].userName.equals(friendName)) {
+									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+									thread_os.printf("#OKfriends %s %s\n", friendName, userName);
+									friends.add(threads[i]);       // Add requestor to this thread's friends
+									threads[i].friends.add(this);  // Add this thread to requestor's friends
+									requestSent = true;
+								}
 							}
 						}
+						if (requestSent) { // If original sender was acknowledged, inform the acceptor, or inform them that the user doesn't exist.
+							output_stream.printf("#OKfriends %s %s\n", userName, friendName);
+						} else {
+							output_stream.printf("#error User: %s doesn't exist.\n", friendName);
+						}
 					}
-					if (requestSent) {
-						output_stream.printf("#OKfriends %s %s\n", userName, friendName);
-					} else {
-						output_stream.printf("#error User: %s doesn't exist.\n", friendName);
-					}
-				} else if (clientMsg.startsWith("#unfriend")) {
+				} else if (clientMsg.startsWith("#unfriend")) { // Takes unfriend request and forwards it to unfriended client
 					Boolean requestSent = false;
 					String friendName = clientMsg.replace("#unfriend", "").trim();
 					synchronized (userThread.class) {
@@ -207,18 +208,18 @@ class userThread extends Thread {
 							if (threads[i] != null && threads[i].userName.equals(friendName)) {
 								PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
 								thread_os.printf("#NotFriends %s %s\n", friendName, userName);
-								friends.remove(friends.indexOf(threads[i]));
-								threads[i].friends.remove(threads[i].friends.indexOf(this));
+								friends.remove(friends.indexOf(threads[i]));					// Remove the unfriended client from this thread's friends
+								threads[i].friends.remove(threads[i].friends.indexOf(this));	// Remove this thread from unfriended client's friends
 								requestSent = true;
 							}
 						}
 					}
-					if (requestSent) {
+					if (requestSent) { // If unfriending was successful, tell client, or inform them the requested user to unfriend doesn't exist.
 						output_stream.printf("#serverMsg You and %s are no longer friends!\n", friendName);
 					} else {
 						output_stream.printf("#error User: %s doesn't exist.\n", friendName);
 					}
-				} else if (clientMsg.startsWith("#DenyFriendRequest")) {
+				} else if (clientMsg.startsWith("#DenyFriendRequest")) { // Takes deny friend request message and forwards it to original sender.
 					Boolean msgSent = false;
 					String requester = clientMsg.replace("#DenyFriendRequest", "").trim();
 					synchronized (userThread.class) {
@@ -232,34 +233,42 @@ class userThread extends Thread {
 							}
 						}
 					}
-					if (!msgSent) {
+					if (!msgSent) { // If user doesn't exist, inform this client.
 						output_stream.printf("#error Username: %s doesn't exist.\n", requester);
 					}
-				} else if (clientMsg.startsWith("#group")) {
+				} else if (clientMsg.startsWith("#group")) { // Takes request to add user to a new group and processes it.
 					String[] request = clientMsg.replace("#group", "").trim().split(" ");
 					synchronized (userThread.class) {
 						Boolean addUser = true;
-						if (groups.indexOf(request[0]) < 0) {
-							if (groups.size() <= maxGroupsCount) {
-								groups.add(request[0]);
+						Boolean userAdded = false;
+
+						if (groups.indexOf(request[0]) < 0) { // Check if group exists.
+							if (groups.size() <= maxGroupsCount) { // Group doesn't exist, check if we have space for a new one.
+								groups.add(request[0]); // Create new group and acknowledge sender.
 								output_stream.printf("#serverMsg Group: %s created!\n", request[0]);
-							} else {
+								for (int i = 0; i < maxUsersCount; i++) { // Inform clients of new group.
+									if (threads[i] != null && threads[i] != this) {
+										threads[i].groups.add(request[0]);
+										PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+										thread_os.printf("#serverMsg User: %s created group: %s!\n", userName, request[0]);
+									}
+								}
+							} else { // If max number of groups exist, inform sender.
 								output_stream.println("#error The maximum number of groups has been reached!");
 								addUser = false;
 							}
-						}
-						if (myGroups.indexOf(request[0]) < 0) {
-							if (myGroups.size() <= maxGroupsCount) {
-								myGroups.add(request[0]);
-								output_stream.printf("#serverMsg Joined group: %s!\n", request[0]);
-							} else {
-								output_stream.println("#error The maximum number of groups has been reached!");
-								addUser = false;
-							}
+						} else if (groups.indexOf(request[0]) > -1 && myGroups.indexOf(request[0]) < 0) { // If group already exists but sender is not a member, send them an error.
+							output_stream.println("#error You must be a group member to add another member!");
+							addUser = false;
 						}
 
-						if (addUser) {
-							for (int i = 0; i < maxUsersCount; i++) {
+						if (addUser) { // Will be true if the above block ran succesfully (either sender is in group or created new group).
+							if (myGroups.indexOf(request[0]) < 0) { // If sender is not already in the group, add them.
+								myGroups.add(request[0]);
+								output_stream.printf("#serverMsg Joined group: %s!\n", request[0]);
+							}
+
+							for (int i = 0; i < maxUsersCount; i++) { // Add the requested user to the group if friends, else send error to sender.
 								if (threads[i] != null && threads[i].userName.equals(request[1])) {
 									if (friends.indexOf(threads[i]) > -1) {
 										if (threads[i].groups.indexOf(request[0]) < 0) {
@@ -269,23 +278,31 @@ class userThread extends Thread {
 											threads[i].myGroups.add(request[0]);
 										}
 										PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
-										thread_os.printf("#serverMsg User: %s added you to group: %s!\n", userName, request[0]);
+										thread_os.printf("#serverMsg User: %s added you to group: %s!\n", userName, request[0]); // Acknowledge requested user.
+										userAdded = true;
 									} else {
 										output_stream.printf("#error You can't add user: %s to group: %s, you must be friends first!\n", request[1], request[0]);
 									}
-								} else if (threads[i] != null && threads[i].groups.indexOf(request[0]) > -1) {
+								}
+							}
+						}
+
+						if (userAdded) { // If the above block ran succesfully (the request user was added), inform other clients.
+							for (int i = 0; i < maxUsersCount; i++) {
+								if (threads[i] != null && threads[i].groups.indexOf(request[0]) > -1 && !threads[i].userName.equals(request[1])) {
 									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
 									thread_os.println(clientMsg);
 								}
 							}
 						}
 					}
-				} else if (clientMsg.startsWith("#ungroup")) {
+				} else if (clientMsg.startsWith("#ungroup")) { // Takes request to remove a user from a group and processes it.
 					String[] request = clientMsg.replace("#ungroup", "").trim().split(" ");
+					Boolean deleteGroup = true;
 					synchronized (userThread.class) {
-						if (groups.indexOf(request[0]) > -1 && myGroups.indexOf(request[0]) > -1) {
+						if (groups.indexOf(request[0]) > -1 && myGroups.indexOf(request[0]) > -1) { // Make sure the sender is a part of the group, else send them an error.
 							for (int i = 0; i < maxUsersCount; i++) {
-								if (threads[i] != null && threads[i].userName.equals(request[1])) {
+								if (threads[i] != null && threads[i].userName.equals(request[1])) { // If the requested user is in the specified group, remove them, else send the sender an error.
 									if (threads[i].myGroups.indexOf(request[0]) > -1) {
 										threads[i].myGroups.remove(threads[i].myGroups.indexOf(request[0]));
 										PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
@@ -293,32 +310,48 @@ class userThread extends Thread {
 									} else {
 										output_stream.printf("#error User: %s is not a part of group: %s!\n", request[1], request[0]);
 									}
-								} else if (threads[i] != null && threads[i].groups.indexOf(request[0]) > -1) {
+								} else if (threads[i] != null && threads[i].groups.indexOf(request[0]) > -1) { // Inform other clients in the group that the user was removed.
 									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
 									thread_os.println(clientMsg);
 								}
 							}
-						} else {
-							output_stream.println("#error You are not part of that group or it doesn't exist!");
-						}	
-					}
-				} else if (clientMsg.startsWith("#gstatus")) {
-					String[] request = clientMsg.replace("#gstatus", "").trim().split(" ", 2);
-					synchronized (userThread.class) {
-						if (groups.indexOf(request[0]) > -1 && myGroups.indexOf(request[0]) > -1) {
-							for (int i = 0; i < maxUsersCount; i++) {
-								if (threads[i] == this) {
-									output_stream.println("#statusPosted");
-								} else if (threads[i] != null && threads[i].groups.indexOf(request[0]) > -1) {
-									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
-									thread_os.printf("#newGStatus %s %s %s\n", request[0], userName, request[1]);
+
+							for (int i = 0; i < maxUsersCount; i++) { // If no one is in the group anymore, flag it for deletion.
+								if (threads[i] != null && threads[i].myGroups.indexOf(request[0]) > -1) {
+									deleteGroup = false;
+								}
+							}
+
+							if (deleteGroup) { // If group was flagged for deletion, remove it from all thread's groups list and inform clients.
+								for (int i = 0; i < maxUsersCount; i++) {
+									if (threads[i] != null) {
+										threads[i].groups.remove(threads[i].groups.indexOf(request[0]));
+										PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+										thread_os.printf("#serverMsg Group: %s has no members, so it was deleted!\n", request[0]);
+									}
 								}
 							}
 						} else {
 							output_stream.println("#error You are not part of that group or it doesn't exist!");
 						}	
 					}
-				} else if (clientMsg.startsWith("#Bye")) {
+				} else if (clientMsg.startsWith("#gstatus")) { // Takes group status message and broadcasts it to the specified group.
+					String[] request = clientMsg.replace("#gstatus", "").trim().split(" ", 2);
+					synchronized (userThread.class) {
+						if (groups.indexOf(request[0]) > -1 && myGroups.indexOf(request[0]) > -1) { // Make sure sender is part of the group, else send them an error.
+							for (int i = 0; i < maxUsersCount; i++) {
+								if (threads[i] == this) {
+									output_stream.println("#statusPosted"); // Acknowledge sender.
+								} else if (threads[i] != null && threads[i].myGroups.indexOf(request[0]) > -1) {
+									PrintStream thread_os = new PrintStream(threads[i].userSocket.getOutputStream());
+									thread_os.printf("#newGStatus %s %s %s\n", request[0], userName, request[1]); // Broadcast status.
+								}
+							}
+						} else {
+							output_stream.println("#error You are not part of that group or it doesn't exist!");
+						}	
+					}
+				} else if (clientMsg.startsWith("#Bye")) { // If message is a leave request, acknowledge the sender and inform other clients
 					synchronized (userThread.class) {
 						for (int i = 0; i < maxUsersCount; i++) {
 							if (threads[i] == this) {
@@ -334,7 +367,7 @@ class userThread extends Thread {
 						}
 					}
 					running = false;
-				} else {
+				} else { // Basic error handling for unknown protocols.
 					System.err.println("Received unknown message type from client: " + clientMsg);
 				}
 			}
@@ -362,7 +395,3 @@ class userThread extends Thread {
 		}
 	}
 }
-
-
-
-

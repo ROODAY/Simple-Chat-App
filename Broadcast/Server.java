@@ -114,7 +114,7 @@ class userThread extends Thread {
 			output_stream = new PrintStream(userSocket.getOutputStream());
 
 			String joinMsg = input_stream.readLine();
-			if (joinMsg.startsWith("#join")) {
+			if (joinMsg.startsWith("#join")) { // When a new user joins the server, log to server, welcome the user, and broadcast to other connected users
 				userName = joinMsg.replace("#join", "").trim();
 				System.out.println("User: " + userName + " has connected!");
 				synchronized (userThread.class) {
@@ -127,7 +127,7 @@ class userThread extends Thread {
 						}
 					}
 				}
-			} else {
+			} else { // Basic error handling
 				System.err.println("Unknown join message: " + joinMsg);
 			}
 
@@ -137,7 +137,7 @@ class userThread extends Thread {
 			while (running) {
 				String clientMsg = input_stream.readLine();
 
-				if (clientMsg.startsWith("#status")) {
+				if (clientMsg.startsWith("#status")) { // If message is a status, acknowledge the sender and broadcast to other clients
 					String cleanedMsg = clientMsg.replace("#status", "").trim();
 					synchronized (userThread.class) {
 						for (int i = 0; i < maxUsersCount; i++) {
@@ -149,7 +149,7 @@ class userThread extends Thread {
 							}
 						}
 					}
-				} else if (clientMsg.startsWith("#Bye")) {
+				} else if (clientMsg.startsWith("#Bye")) { // If message is a leave request, acknowledge the sender and inform other clients
 					synchronized (userThread.class) {
 						for (int i = 0; i < maxUsersCount; i++) {
 							if (threads[i] == this) {
@@ -162,7 +162,7 @@ class userThread extends Thread {
 						}
 					}
 					running = false;
-				} else {
+				} else { // Basic error handling
 					System.err.println("Received unknown message type from client: " + clientMsg);
 				}
 			}
@@ -190,7 +190,3 @@ class userThread extends Thread {
 		}
 	}
 }
-
-
-
-

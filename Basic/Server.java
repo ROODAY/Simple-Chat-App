@@ -9,21 +9,16 @@ import java.net.Socket;
 import java.net.ServerSocket;
 import java.util.*;
 
-
-
 /*
  * A server that simply prints out and acknowledges messages back.
  */
 public class Server {
-
 	// Create a socket for the server 
 	private static ServerSocket serverSocket = null;
 	// Create a socket for the user 
 	private static Socket userSocket = null;
 	private static BufferedReader input_stream = null;
 	private static PrintStream output_stream = null;
-
-
 
 	public static void main(String args[]) {
 

@@ -10,9 +10,7 @@ import java.io.BufferedReader;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-
 public class User extends Thread {
-
 	// The user socket
 	private static Socket userSocket = null;
 	// The output stream
@@ -68,43 +66,41 @@ public class User extends Thread {
 				/* Create a thread to read from the server. */
 				new Thread(new User()).start();
 
-				
-
 				while (!closed) {
 					String userInput = inputLine.readLine().trim();
-					if (userInput.equals("Exit") || userInput.equals("exit")) {
+					if (userInput.equals("Exit") || userInput.equals("exit")) { // Inform server that user wishes to quit.
 						output_stream.println("#Bye");
-					} else if (userInput.startsWith("@connect")) {
+					} else if (userInput.startsWith("@connect")) { // Send a connection request to another user. Takes a <username> argument.
 						String friend = userInput.replace("@connect", "").trim();
 						output_stream.println("#friendme " + friend);
-					} else if (userInput.startsWith("@friend")) {
+					} else if (userInput.startsWith("@friend")) { // Accept a friend request from a user. Takes a <username> argument.
 						String friend = userInput.replace("@friend", "").trim();
 						output_stream.println("#friends " + friend);
-					} else if (userInput.startsWith("@deny")) {
+					} else if (userInput.startsWith("@deny")) { // Deny a friend request from a user. Takes a <username> argument.
 						String friend = userInput.replace("@deny", "").trim();
 						output_stream.println("#DenyFriendRequest " + friend);
-					} else if (userInput.startsWith("@disconnect")) {
+					} else if (userInput.startsWith("@disconnect")) { // Unfriend a user. Takes a <username> argument.
 						String friend = userInput.replace("@disconnect", "").trim();
 						output_stream.println("#unfriend " + friend);
-					} else if (userInput.startsWith("@add")) {
+					} else if (userInput.startsWith("@add")) { // Add another user to a group.
 						String groupRequest = userInput.replace("@add", "").trim();
 						output_stream.println("#group " + groupRequest);
-					} else if (userInput.startsWith("@delete")) {
+					} else if (userInput.startsWith("@delete")) { // Remove another user from a group.
 						String groupRequest = userInput.replace("@delete", "").trim();
 						output_stream.println("#ungroup " + groupRequest);
-					} else if (userInput.startsWith("@send")) {
+					} else if (userInput.startsWith("@send")) { // Send a status message to a specific group.
 						String groupMessage = userInput.replace("@send", "").trim();
 						output_stream.println("#gstatus " + groupMessage);
-					} else if (!userInput.startsWith("@")) {
+					} else if (!userInput.startsWith("@")) { // If not any of the above, send message as status update.
 						output_stream.println("#status " + userInput);
-					} else {
+					} else { // Basic error handling for unknown @ commands.
 						System.err.println("Unrecognized command!");
 					}
 				}
+
 				/*
 				 * Close the output stream, close the input stream, close the socket.
 				 */
-
 				output_stream.close();
 				input_stream.close();
 				userSocket.close();
@@ -128,58 +124,58 @@ public class User extends Thread {
 		
 		try {
 			while ((responseLine = input_stream.readLine()) != null) {
-				if (responseLine.startsWith("#welcome")) {
+				if (responseLine.startsWith("#welcome")) { // Welcome a user joining the server.
 					System.out.println("Connection established!");
 					System.out.println("Type 'Exit' to quit.");
-				} else if (responseLine.startsWith("#busy")) {
+				} else if (responseLine.startsWith("#busy")) { // Inform user if server is full and close application.
 					System.err.println("Server is busy right now, please try again later!");
 					System.exit(0);
 					break;
-				} else if (responseLine.startsWith("#statusPosted")) {
+				} else if (responseLine.startsWith("#statusPosted")) { // Acknowledge that this user's status was broadcast.
 					System.out.println("Status posted!");
-				} else if (responseLine.startsWith("#newuser")) {
+				} else if (responseLine.startsWith("#newuser")) { // Inform user of new user.
 					String joiningUser = responseLine.replace("#newuser", "").trim();
 					System.out.println("User " + joiningUser + " has entered!");
-				} else if (responseLine.startsWith("#newStatus")) {
+				} else if (responseLine.startsWith("#newStatus")) { // Display broadcasted status from other user.
 					String newStatus[] = responseLine.replace("#newStatus", "").trim().split(" ", 2);
 					System.out.printf("[%s] %s\n", newStatus[0], newStatus[1]);
-				} else if (responseLine.startsWith("#newGStatus")) {
+				} else if (responseLine.startsWith("#newGStatus")) { // Display broadcasted status for specific group.
 					String newStatus[] = responseLine.replace("#newGStatus", "").trim().split(" ", 3);
 					System.out.printf("[%s] [%s] %s\n", newStatus[0], newStatus[1], newStatus[2]);
-				} else if (responseLine.startsWith("#Leave")) {
+				} else if (responseLine.startsWith("#Leave")) { // Inform user of another user leaving.
 					String leavingUser = responseLine.replace("#Leave", "").trim();
 					System.out.println("User " + leavingUser + " has left!");
-				} else if (responseLine.startsWith("#friendme")) {
+				} else if (responseLine.startsWith("#friendme")) { // Inform user of incoming friend request.
 					String friendName = responseLine.replace("#friendme", "").trim();
 					System.out.println("User " + friendName + " wants to be friends!");
 					System.out.printf("Type '@friend %s' to accept!\n", friendName);
 					System.out.printf("Type '@deny %s' to deny!\n", friendName);
-				} else if (responseLine.startsWith("#OKfriends")) {
+				} else if (responseLine.startsWith("#OKfriends")) { // Inform user that friend request was accepted.
 					String friendName = responseLine.replace("#OKfriends", "").trim().split(" ")[1];
 					System.out.println("You and User " + friendName + " are now friends!");
-				} else if (responseLine.startsWith("#FriendRequestDenied")) {
+				} else if (responseLine.startsWith("#FriendRequestDenied")) { // Inform user that friend request was denied.
 					String friendName = responseLine.replace("#FriendRequestDenied", "").trim();
 					System.out.println("User " + friendName + " denied your friend request!");
-				} else if (responseLine.startsWith("#NotFriends")) {
+				} else if (responseLine.startsWith("#NotFriends")) { // Inform user that unfriending was successful.
 					String friendName = responseLine.replace("#NotFriends", "").trim().split(" ")[1];
 					System.out.println("You are no longer friends with " + friendName + "!");
-				} else if (responseLine.startsWith("#group")) {
+				} else if (responseLine.startsWith("#group")) { // Inform user that another user was added to a group.
 					String[] request = responseLine.replace("#group", "").trim().split(" ");
 					System.out.printf("User: %s is now in group: %s!\n", request[1], request[0]);
-				} else if (responseLine.startsWith("#ungroup")) {
+				} else if (responseLine.startsWith("#ungroup")) { // Inform user that another user was removed from a group.
 					String[] request = responseLine.replace("#ungroup", "").trim().split(" ");
 					System.out.printf("User: %s is no longer in group: %s!\n", request[1], request[0]);
-				} else if (responseLine.startsWith("#Bye")) {
+				} else if (responseLine.startsWith("#Bye")) { // Acknowledge user's request to leave and close program.
 					System.err.println("Closing connection...");
 					System.exit(0);
 					break;
-				} else if (responseLine.startsWith("#error")) {
+				} else if (responseLine.startsWith("#error")) { // Display generic error message from server.
 					String errorMsg = responseLine.replace("#error", "").trim();
 					System.err.println("ERROR: " + errorMsg);
-				} else if (responseLine.startsWith("#serverMsg")) {
+				} else if (responseLine.startsWith("#serverMsg")) { // Display generic message from server.
 					String serverMsg = responseLine.replace("#serverMsg", "").trim();
 					System.out.println(serverMsg);
-				} else {
+				} else { // Basic error handling for unknown protocol.
 					System.err.println("Received unknown message from server: " + responseLine);
 				}
 			}
@@ -192,6 +188,3 @@ public class User extends Thread {
 		}
 	}
 }
-
-
-

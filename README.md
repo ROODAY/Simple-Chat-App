@@ -1,3 +1,3 @@
-# CS 655 Social Networking Application
+# Simple Chat Application
 
-CS 655 Programming Assignment 1
+A simple chat application implemented with Java sockets
